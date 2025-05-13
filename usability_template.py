@@ -263,7 +263,7 @@ def parse_extracted_component(paradir):
 
 def main():
     # Create PDF Object for the files with that particular component
-    paradir = sort_files("/home/apurv/Thesis/PDF-Information-Extraction-Benchmark/Data/Docbank_sample", 'reference')
+    paradir = sort_files("/mnt/c/Users/User/Documents/Code/Erudit-Metadata/pdf-benchmark/Data/Docbank_sample", 'reference')
 
     ## Tool specific implementation
     extraction_function(paradir)
