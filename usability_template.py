@@ -105,6 +105,7 @@ def sort_files(dir, label):
     return str(p)
 
 ## TYPE I (with cropping the PDF file)
+# When tool uses one page at a time
 def get_gt_crop(PDFObj, p, label, retflag):
     txt_data = PDFObj.txt_data
     gt_frame_labled = txt_data.loc[(txt_data['label'] == label)]
@@ -123,6 +124,7 @@ def get_gt_crop(PDFObj, p, label, retflag):
             return gt_frame_labled
 
 ## TYPE II (without cropping the PDF file)
+# When tool uses full PDF
 def get_gt_wcrop(PDFObj, p, retflag, label):
     """
     Function has two purpose controlled by retflag parameter.
@@ -250,10 +252,12 @@ def compute_results(dataf, field):
     return f1,prec,recal, matrix.iloc[0,0]
 
 # Below two methods changes as per tool
+# TODO
 def extraction_function(paradir):
     # Here goes the implementation for the component extract
     return 0
 
+# TODO
 def parse_extracted_component(paradir):
     # After extracted of the components they are parsed into DataFrame
     # ID field must be PDF filename
@@ -266,7 +270,7 @@ def main():
     paradir = sort_files("/mnt/c/Users/User/Documents/Code/Erudit-Metadata/pdf-benchmark/Data/Docbank_sample", 'reference')
 
     ## Tool specific implementation
-    extraction_function(paradir)
+    extraction_function(paradir)                 
     resultdf = parse_extracted_component(paradir)
 
     ## Columns of the GT DF is columns=['ID', 'title_gt'] where ID is filename
