@@ -11,6 +11,10 @@ def match_dfs(cordinate_df, tokens, topc ,botc):
     :param botc: Coordinates of the last token in the table.
     :return: Basic tokens of the First and Last token of the table.
     """
+    if tokens is None or len(tokens) < 6:
+        print("[ERROR] match_dfs received invalid token list.")
+        return pd.DataFrame(), pd.DataFrame()
+
     cordinate_df['tablestart' ] =(cordinate_df['token'] == tokens[0]) & (cordinate_df['token'].shift(-1) == tokens[1]) & \
                                (cordinate_df['token'].shift(-2) == tokens[2])
     cordinate_df['tableend'] = (cordinate_df['token'] == tokens[5]) & (cordinate_df['token'].shift(1) == tokens[4]) & \
@@ -88,21 +92,26 @@ def get_bbox(pdfname, pdfdir, pagenumber):
 
 
 def calc_tokens(table_frame):
-    """
-    Function computes the top 4 and bottom 4 tokens along with their bounding boxes
-    :param table_frame: Cropped Table Component in a dataframe.
-    :return: Top + Bottom tokens in a list, Top token coordinates in a list, Bottom token coordinates in a list.
-    """
+    if table_frame is None or table_frame.empty or len(table_frame) < 3:
+        print("[WARNING] Table frame too small or empty for token extraction.")
+        return None, None, None
+
     top3 = table_frame.head(3)
     bot3 = table_frame.tail(3)
-    l1 =top3['token'].tolist()
-    l2 =bot3['token'].tolist()
-    lf= l1 + l2
 
-    topx0 =table_frame[['x0' ,'y0' ,'x1' ,'y1']].head(1)
-    botxo =table_frame[['x0' ,'y0' ,'x1' ,'y1']].tail(1)
+    l1 = top3['token'].tolist()
+    l2 = bot3['token'].tolist()
+    lf = l1 + l2
+
+    if len(lf) < 6:
+        print("[WARNING] Not enough tokens found to form token list.")
+        return None, None, None
+
+    topx0 = table_frame[['x0', 'y0', 'x1', 'y1']].head(1)
+    botxo = table_frame[['x0', 'y0', 'x1', 'y1']].tail(1)
 
     return lf, topx0.values.flatten().tolist(), botxo.values.flatten().tolist()
+
 
 def get_table_coordinates(PDF, table_frame_labled):
     """
@@ -111,15 +120,29 @@ def get_table_coordinates(PDF, table_frame_labled):
     :param PDF: PDF Object
     :return: Table area for camelot
     """
-    token_list ,topc, botc = calc_tokens(table_frame_labled)
-    cordinates_data = get_bbox(PDF.pdf_name, PDF.filepath,
-                               0)  # Extra base coordinates for table_regions field.
+    token_list, topc, botc = calc_tokens(table_frame_labled)
+
+    if token_list is None or topc is None or botc is None:
+        print(f"[WARNING] calc_tokens failed to extract valid data from {PDF.pdf_name}")
+        return [0, 0, 0, 0]
+
+    cordinates_data = get_bbox(PDF.pdf_name, PDF.filepath, 0)
+
+    #cordinate_df = get_bbox(PDF.pdf_name, PDF.filepath, 0)
+    if cordinates_data is None:
+        print(f"[ERROR] No bounding box data extracted for {PDF.pdf_name}")
+        return [0, 0, 0, 0]
+
+    required_cols = {'token', 'x0', 'y0', 'x1', 'y1'}
+    if cordinates_data is None or cordinates_data.empty or not required_cols.issubset(cordinates_data.columns):
+        print(f"[ERROR] Invalid or incomplete bbox data for {PDF.pdf_name}")
+        return [0, 0, 0, 0]
+
     tablestart, tableend = match_dfs(cordinates_data, token_list, topc, botc)
 
-    if tablestart.empty:
-        coordinates = [0] * 4
-        return coordinates  # Too much confusing data, heuristics failed. Hence, Sending 0s
-    else:
-        coordinates = camelot_coordinates(tablestart, tableend)
-        return coordinates
+    if tablestart.empty or tableend.empty:
+        print(f"[INFO] match_dfs failed to identify a single table range for {PDF.pdf_name}")
+        return [0, 0, 0, 0]
+
+    return camelot_coordinates(tablestart, tableend)
 

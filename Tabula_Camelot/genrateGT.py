@@ -1,6 +1,7 @@
 import csv
 import os.path
 import shutil
+import uuid
 from glob import glob
 from os import path
 
@@ -28,24 +29,49 @@ def locate_data(dir):
 
 def load_data(dir):
     """
-    Function creates the PDF objects for the gives base directory of DocBank dataset.
+    Function creates the PDF objects for the given base directory of DocBank dataset.
     :param dir: Base location of DocBank dataset.
     :return: List of PDF Objects.
     """
-    pdff,txtf = locate_data(dir)
-    PDFlist=[]
+    pdff, txtf = locate_data(dir)
+    PDFlist = []
 
     for txt in txtf:
-        nwe=os.path.splitext(os.path.basename(txt))[0] # 2.tar_1801.00617.gz_idempotents_arxiv_4.txt --> 2.tar_1801.00617.gz_idempotents_arxiv_4
-        keyword=nwe.rpartition('_')[0] # 2.tar_1801.00617.gz_idempotents_arxiv_4 --> 2.tar_1801.00617.gz_idempotents_arxiv
-        page_number=nwe.split('_')[-1]  # 2.tar_1801.00617.gz_idempotents_arxiv_4 --> 4
-        pdfn = dir + "/" +keyword + "_black.pdf"
+        nwe = os.path.splitext(os.path.basename(txt))[0]
+        keyword = nwe.rpartition('_')[0]
+        page_number = nwe.split('_')[-1]
+        pdfn = os.path.join(dir, f"{keyword}_{page_number}_black.pdf")
+
+        txt_name = os.path.basename(txt)
+        print(f"[DEBUG] Checking {txt_name}")
+
         if os.path.isfile(pdfn):
-            pdf_name=os.path.basename(pdfn)
-            txt_name=os.path.basename(txt)
-            txtdf=pd.read_csv(txt,sep='\t',quoting=csv.QUOTE_NONE,encoding='latin1',usecols=[0,1,2,3,4,9], names=["token", "x0", "y0", "x1", "y1","label"])
-            PDFlist.append(PDF(page_number,pdf_name,dir,txt_name,txtdf))
+            txtdf = pd.read_csv(
+                txt,
+                sep='\t',
+                quoting=csv.QUOTE_NONE,
+                encoding='latin1',
+                usecols=[0,1,2,3,4,9],
+                names=["token", "x0", "y0", "x1", "y1", "label"]
+            )
+
+            label_counts = txtdf['label'].value_counts().to_dict()
+            print(f"[DEBUG] Label counts in {txt_name}: {label_counts}")
+
+            label_df = txtdf[txtdf['label'] == 'table']
+            if len(label_df) == 0:
+                print(f"[SKIP] No 'table' labels in {txt_name}")
+                continue
+
+            pdf_name = os.path.basename(pdfn)
+            PDFlist.append(PDF(page_number, pdf_name, dir, txt_name, label_df))
+        else:
+            print(f"[ERROR] Missing GT PDF: {pdfn}")
+
+
+    print(f"[DEBUG] Total PDFs loaded: {len(PDFlist)}")
     return PDFlist
+
 
 def get_gt_table(PDF):
     """
@@ -67,6 +93,7 @@ def merge_multiple_files(files, outputfile):
             with open(f, 'rb') as fd:
                 shutil.copyfileobj(fd, wfd)
     return outputfile
+
 def format_tablecells_dfs(table_df,PDF,deleteflag):
     """
     Function for creating a Uniform format of extracted data. Splitting each table cell/word per line.
@@ -77,7 +104,10 @@ def format_tablecells_dfs(table_df,PDF,deleteflag):
     """
 
     if (len(table_df) == 1):
-        tablef = PDF.pdf_name.replace('.pdf', '') + '_{}_extract.csv'.format(str(PDF.page_number))
+        #tablef = PDF.pdf_name.replace('.pdf', '') + '_{}_extract.csv'.format(str(PDF.page_number))
+        tmp_suffix = str(uuid.uuid4())[:8]
+        tablef = f"{PDF.pdf_name.replace('.pdf', '')}_{PDF.page_number}_{tmp_suffix}_extract.csv"
+
         table_df[0].to_csv(tablef, sep='\n', index=False, quoting=csv.QUOTE_ALL, header=False)
 
         table_extracted = pd.read_csv(tablef, sep=',', names=["token"], dtype={"token" : str})

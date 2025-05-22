@@ -1,6 +1,10 @@
 import os
+import sys
 import shutil
+import csv
+from os import path
 from pathlib import Path
+from glob import glob
 from shutil import copy
 from xml.dom.minidom import parseString
 import pandas as pd
@@ -10,11 +14,49 @@ from dicttoxml import dicttoxml
 from tika import parser
 from tqdm import tqdm
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from PdfAct.pdfact_extract import process_tokens, crop_pdf
 from GROBID.evaluate import  compute_results
-from Tabula_Camelot.genrateGT import load_data
-import fitz
+#from Tabula_Camelot.genrateGT import load_data
+import fitz     # PyMuPDF, old version
 
+class PDF:
+    def __init__(self, page_number=None, pdf_name=None, filepath=None, txt_name=None, txt_data=None):
+        self.page_number = page_number
+        self.pdf_name = pdf_name
+        self.filepath = filepath
+        self.txt_name = txt_name
+        self.txt_data = txt_data
+
+def load_data(dir, label):
+    """
+    Create PDF objects by matching TXT files to their corresponding _black.pdf files in DocBank_sample.
+    Only return PDFs that contain the specified label.
+    """
+    txt_files = glob(path.join(dir, "*.txt"))
+    PDFlist = []
+
+    for txt in txt_files:
+        base = path.splitext(path.basename(txt))[0]  # e.g. 11.tar_1401.6921.gz_rad-lep-II-2_13
+        keyword = base.rpartition("_")[0]            # e.g. 11.tar_1401.6921.gz_rad-lep-II-2
+        page_number = base.split("_")[-1]
+        pdf_path = path.join(dir, f"{keyword}_black.pdf")
+
+        if path.isfile(pdf_path):
+            pdf_name = path.basename(pdf_path)
+            txt_name = path.basename(txt)
+            txtdf = pd.read_csv(
+                txt, sep='\t', quoting=csv.QUOTE_NONE, encoding='latin1',
+                usecols=[0, 1, 2, 3, 4, 9],
+                names=["token", "x0", "y0", "x1", "y1", "label"]
+            )
+            if label in txtdf["label"].values:
+                PDFlist.append(PDF(page_number, pdf_name, dir, txt_name, txtdf))
+        else:
+            print(f"[ERROR] Cannot find expected PDF: {pdf_path}")
+
+    #print(f"[DEBUG] Total PDFs loaded: {len(PDFlist)}")
+    return PDFlist
 
 def get_gt_meta(PDFObj, label,p, retflag):
     """
@@ -38,7 +80,7 @@ def get_gt_meta(PDFObj, label,p, retflag):
             return frame_labled
 
 def sort_metadata(dir, label):
-    PDFlist = load_data(dir)
+    PDFlist = load_data(dir, label)
     dirname='metadata' + '_' + label
     p = Path(dir +  os.sep + dirname)
     p.mkdir(parents=True, exist_ok=True)
@@ -63,7 +105,7 @@ def parse_tika_file(outputfile):
     return authorlist, title
 
 def extract_tika_metadata(metadir, label, dirkey):
-    metaPDFlist=load_data(metadir)
+    metaPDFlist=load_data(metadir, label)
     resultdata=[]
     for PDF in tqdm(metaPDFlist):
         filep=PDF.filepath + os.sep + PDF.pdf_name
@@ -93,8 +135,8 @@ def extract_tika_metadata(metadir, label, dirkey):
 
             # PyMuPDF_TIKA Text extraction
             doc = fitz.open(croppedfile)
-            page = doc.loadPage(0)
-            text = page.getText("text")
+            page = doc.load_page(0)
+            text = page.get_text("text")
 
             os.remove(croppedfile)
 
@@ -146,11 +188,15 @@ def extract_tika_metadata(metadir, label, dirkey):
     return resultdf
 
 def main():
-    dir_array = ['docbank_1401']
+    dir_array = ['']
     for dir in dir_array:
-        metadir = sort_metadata("/data/docbank/" + dir, "paragraph")
-        resultdf = extract_tika_metadata(metadir, 'paragraph', dir)
-        resultdf.to_csv('tika_extract_para_1401.csv', index=False)
+        base_dir = "./Data/Docbank_sample" + ("/" + dir if dir else "")
+        resultdf = extract_tika_metadata(base_dir, 'paragraph', dir)
+
+        filename='refextract_extract_ref' + '.csv'
+        outputf='./Data/results/pymupdf_tika/' + filename
+        os.makedirs(os.path.dirname(outputf), exist_ok=True)
+        resultdf.to_csv(outputf, index=False)
 
 if __name__ == "__main__":
     main()

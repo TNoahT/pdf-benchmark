@@ -39,6 +39,7 @@ def load_data_subset(dir):
 def get_gt_metadata(PDFObj, p, label, retflag):
     txt_data = PDFObj.txt_data
     gt_frame_labled = txt_data.loc[(txt_data['label'] == label)]
+    print(f"[DEBUG] Found {len(gt_frame_labled)} rows with label={label} for PDF={PDFObj.pdf_name}")
     if len(gt_frame_labled) != 0:
         if retflag == True:
             croppedfile = crop_pdf(PDFObj.filepath, PDFObj.pdf_name, PDFObj.page_number)
@@ -49,8 +50,10 @@ def get_gt_metadata(PDFObj, p, label, retflag):
             copy(croppedfile, p)
             #os.replace(croppedfile, realfile)
             copy(txtname, p)
+            print(f"[DEBUG] Loading TXT from: {PDFObj.filepath + os.sep + PDFObj.txt_name}")
             return
         else:
+            print(f"[DEBUG] Loading TXT from: {PDFObj.filepath + os.sep + PDFObj.txt_name}")
             return gt_frame_labled
 
 def create_gt_df(dir, label):

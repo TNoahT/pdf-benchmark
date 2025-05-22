@@ -230,9 +230,24 @@ def compute_results(dataf, field):
     groundtruth=field + '_gt'
     df_extracted=dataf[[extracted]]
     df_groundtruth=dataf[[groundtruth]]
-    df_extracted = df_extracted.astype(str).applymap(str.split).apply(pd.Series.explode,axis=0).reset_index().drop("index", 1)
-    df_groundtruth = df_groundtruth.astype(str).applymap(str.split).apply(pd.Series.explode, axis=0).reset_index().drop("index", 1)
-    df_extracted=df_extracted.applymap(str)
+    #df_extracted = df_extracted.astype(str).applymap(str.split).apply(pd.Series.explode,axis=0).reset_index().drop("index", 1)
+    df_extracted = (
+        df_extracted.astype(str)
+                    .apply(lambda col: col.str.split())
+                    .apply(pd.Series.explode, axis=0)
+                    .reset_index(drop=True)
+    )
+    
+    #df_groundtruth = df_groundtruth.astype(str).applymap(str.split).apply(pd.Series.explode, axis=0).reset_index().drop("index", 1)
+    df_groundtruth = (
+        df_groundtruth.astype(str)
+                    .apply(lambda col: col.str.split())
+                    .apply(pd.Series.explode, axis=0)
+                    .reset_index(drop=True)
+    )
+
+    #df_extracted=df_extracted.applymap(str)
+    df_extracted = df_extracted.apply(lambda col: col.astype(str))
 
     # Computing similarity matrix for collated tokens (Accuracy)
     df_extractednp = dataf[extracted].to_numpy()

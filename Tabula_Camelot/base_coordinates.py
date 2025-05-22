@@ -42,13 +42,13 @@ def worker(pdf_file, data_dir, output_dir, pagenum):
     try:
         pdf_images = pdf2image.convert_from_path(os.path.join(data_dir, pdf_file))
     except:
-        return
+        return pd.DataFrame()
 
     page_tokens = []
     try:
         pdf = pdfplumber.open(os.path.join(data_dir, pdf_file))
     except:
-        return
+        return pd.DataFrame()
 
     tokens = []
     if (pagenum <= len(pdf.pages)):
@@ -197,11 +197,13 @@ def worker(pdf_file, data_dir, output_dir, pagenum):
         os.chdir(output_dir)
         filename=pdf_file.replace('.pdf', '') + '_{}_temp.txt'.format(str(pagenum))
         txtdf = pd.read_csv(filename, sep='\t', usecols=[0,1,2,3,4,9,10,11,12], names=["token",'x0','y0','x1','y1', "xx0", "yy0", "xx1", "yy1"], header=None)
-        os.remove(output_dir + os.sep + filename)
+        temp_file = os.path.join(output_dir, filename)
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
         return txtdf
     else:
         print('File cannot be generated....')
-
+        return pd.DataFrame()
 #newdf=worker('247.tar_1710.11035.gz_MTforGSW_black.pdf', '/home/apurv/Thesis/PoC/PDF_Extraction_Benchmarking/Data/boundingboxtest/pdf/', '/home/apurv/Thesis/PoC/PDF_Extraction_Benchmarking/Data/boundingboxtest/pdf/', 2)
 #print(newdf)
 

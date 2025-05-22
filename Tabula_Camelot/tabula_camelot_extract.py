@@ -92,24 +92,19 @@ def tabula_extract_table(pdfname, dir, *coordinates):
     :return:
     """
     try:
+        fname = pdfname
+        print(f"[DEBUGGG] Tabula trying to read: {os.path.abspath(fname)}")
         if not coordinates:
-            fname = dir + os.sep + pdfname
-            tabulatabs = tabula.read_pdf(fname,stream=True)
+            tabulatabs = tabula.read_pdf(fname, stream=True, pages=1, multiple_tables=True)
         else:
             cordin=coordinates[0]
             cor = [str(i) for i in cordin]
             cor = ','.join(cor)
             #cordi = [cor] # Converting [58,176,280,71] into ['58,176,280,71']
-            fname=dir + os.sep + pdfname
-            tabulatabs =  tabula.read_pdf(fname, stream=True, area=cor)
-        if(len(tabulatabs) == 0) :
-            #print('No table found in file', pdfname)
-            pass
-        else:
-            #print(len(tabs), 'table found in file', pdfname)
+            tabulatabs =  tabula.read_pdf(fname, stream=True, area=[cordin], pages=1, multiple_tables=True)
+        if tabulatabs :
             return tabulatabs
-            #return tabs, get_coordinatedf(tabs)
-    except(Exception):
-        pass
+    except Exception as e:
+        print(f"[ERROR] Tabula extraction failed for {pdfname}: {e}")
 
 

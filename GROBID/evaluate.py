@@ -3,9 +3,9 @@ import shutil
 from pathlib import Path
 from shutil import copy
 import pandas as pd
-from similarity.damerau import Damerau
-from similarity.jaccard import Jaccard
-from similarity.jarowinkler import JaroWinkler
+#from similarity.damerau import Damerau
+#from similarity.jaccard import Jaccard
+#from similarity.jarowinkler import JaroWinkler
 from tqdm import tqdm
 
 from CERMINE.cermine_parse_xml import extract_cermine_metadata, parse_metadata_cermine
@@ -186,9 +186,11 @@ def compute_results(dataf, field):
     groundtruth=field + '_gt'
     df_extracted=dataf[[extracted]]
     df_groundtruth=dataf[[groundtruth]]
-    df_extracted = df_extracted.astype(str).applymap(str.split).apply(pd.Series.explode,axis=0).reset_index().drop("index", 1)
-    df_groundtruth = df_groundtruth.astype(str).applymap(str.split).apply(pd.Series.explode, axis=0).reset_index().drop("index", 1)
-    df_extracted=df_extracted.applymap(str)
+    
+    df_extracted = df_extracted[extracted].astype(str).str.split().explode().reset_index(drop=True).to_frame()
+    df_groundtruth = df_groundtruth[groundtruth].astype(str).str.split().explode().reset_index(drop=True).to_frame()
+
+    df_extracted = df_extracted.astype(str)
 
     # Computing similarity not considering reading order.
     df_extractednp = dataf[extracted].to_numpy()
